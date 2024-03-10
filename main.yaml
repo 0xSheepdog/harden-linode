@@ -1,0 +1,42 @@
+---
+- hosts: localhost
+  become: true
+  vars:
+  - NEWUSER: "new-user"
+  - NEWUSER_PASSWORD: "{{ 'mypassword' | password_hash('sha512') }}"
+  tasts:
+  - name: Modify sshd_config
+    community.general.ini_file:
+      path:   /etc/ssh/sshd_config
+      option: "{{ item.option }}"
+      value:  "{{ item.value }}"
+      state:  present
+    loop:
+    - { option: 'PermitRootLogin', value: 'no' }
+    - { option: 'PasswordAuthentication', value: 'no' }
+    - { option: 'AllowUsers', value: '{{ NEWUSER }}'}
+  - name: "Add user {{ NEWUSER }}"
+    ansible.builtin.user:
+      name: "{{ NEWUSER }}"
+      generate_ssh_key: yes
+      ssh_key_type: ed25519
+      password: "{{ NEWUSER_PASSWORD }}"
+  - name: Configure CRB
+    command: dnf config-manager --set-enabled crb
+    args:
+      warn: false
+  - name: Install EPEL
+    dnf:
+      name: epel-release
+      state: present
+  - name: Install packages
+    dnf:
+      name:
+      - fail2ban
+      - vim-enhanced
+      - tmux
+      - powerline
+      - tmux-powerline
+      - vim-powerline
+      state: present
+...
